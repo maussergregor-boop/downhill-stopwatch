@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Downhill Timer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --card: #161616;
+    --border: #222;
+    --green: #00ff88;
+    --green-dim: #00cc6a;
+    --red: #ff3b3b;
+    --yellow: #ffd600;
+    --text: #f0f0f0;
+    --muted: #555;
+    --muted2: #333;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding-bottom: 80px;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+  .logo {
+    font-family: 'Orbitron', monospace;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    color: var(--green);
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--text); }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 53px;
+    z-index: 9;
+  }
+  .tab {
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    font-weight: 600;
+  }
+
+  @media (max-width: 480px) and (orientation: portrait) {
+    .tab {
+      font-size: 16px;
+      padding: 16px 8px;
+      letter-spacing: 1px;
+    }
+  }
+  .tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+
+  /* PANELS */
+  .panel { display: none; padding: 20px; }
+  .panel.active { display: block; }
+
+  /* ZEITEN PANEL */
+  .trail-filter {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 16px;
+    scrollbar-width: none;
+  }
+  .trail-filter::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    background: var(--card);
+    transition: all 0.2s;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+  }
+  .filter-chip.active {
+    background: var(--green);
+    color: #000;
+    border-color: var(--green);
+  }
+
+  .times-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .time-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .time-card:hover { border-color: var(--muted); }
+  .time-card.best { border-color: var(--yellow); }
+  .time-card.best::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--yellow);
+  }
+  .time-card.unassigned { border-style: dashed; }
+  .time-card.unassigned::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--muted);
+  }
+
+  .rank {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    min-width: 22px;
+    text-align: center;
+  }
+  .rank.gold { color: var(--yellow); }
+
+  .time-info { flex: 1; }
+  .time-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 2px;
+  }
+  .time-card.best .time-value { color: var(--yellow); }
+  .time-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .trail-badge {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .unassigned-label {
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .assign-btn {
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--green);
+    background: none;
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .assign-btn:hover { background: var(--green); color: #000; }
+
+  .delete-btn {
+    font-size: 14px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    flex-shrink: 0;
+    transition: color 0.2s;
+    line-height: 1;
+  }
+  .delete-btn:hover { color: var(--red); }
+
+  .delete-all-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 12px;
+    text-align: center;
+    background: none;
+    border: 1px solid var(--muted2);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .delete-all-btn:hover { border-color: var(--red); color: var(--red); }
+
+  @media (max-width: 480px) and (orientation: portrait) {
+    .delete-btn {
+      font-size: 20px;
+      padding: 6px 10px;
+    }
+    .delete-all-btn {
+      font-size: 16px;
+      padding: 16px;
+    }
+    .assign-btn {
+      font-size: 14px;
+      padding: 8px 14px;
+    }
+  }
+
+  .trophy { font-size: 14px; }
+
+  /* BESTZEITEN PANEL */
+  .best-section { margin-bottom: 24px; }
+  .section-label {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+
+  .podium-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .podium-trail {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .podium-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .podium-count {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  .diff-positive { color: var(--red); font-size: 12px; font-family: 'Orbitron', monospace; }
+  .diff-negative { color: var(--green); font-size: 12px; font-family: 'Orbitron', monospace; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    align-items: flex-end;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 100%;
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .modal h3 {
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+  .modal-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--green);
+    margin-bottom: 20px;
+    letter-spacing: 3px;
+  }
+  .trail-options { display: flex; flex-direction: column; gap: 8px; }
+  .trail-option {
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    background: var(--card);
+  }
+  .trail-option:hover { border-color: var(--green); color: var(--green); }
+  .new-trail-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .trail-input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 12px 14px;
+    font-size: 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .trail-input:focus { border-color: var(--green); }
+  .trail-input::placeholder { color: var(--muted); text-transform: none; letter-spacing: 0; }
+  .btn-add {
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .modal-cancel {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 600;
+    border: none;
+    background: none;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+
+  /* STATS PANEL */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .stat-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--green);
+  }
+  .stat-value.white { color: var(--text); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  /* EINSTELLUNGEN */
+  .setting-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+  .setting-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .setting-name {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .setting-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green);
+    min-width: 40px;
+    text-align: right;
+  }
+  .setting-desc {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--green);
+    cursor: pointer;
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--muted2);
+    border-radius: 26px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--green); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(22px); }
+
+  .save-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .save-btn:hover { opacity: 0.85; }
+  .save-confirm {
+    text-align: center;
+    font-size: 12px;
+    color: var(--green);
+    letter-spacing: 1px;
+    margin-top: 10px;
+    height: 16px;
+    transition: opacity 0.3s;
+  }
+
+  /* Note */
+  .esp-note {
+    background: rgba(0,255,136,0.05);
+    border: 1px solid rgba(0,255,136,0.15);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .esp-note span { color: var(--green); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DOWN<span>HILL</span></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="status-dot" id="status-dot" title="Nicht verbunden" style="background:var(--red);box-shadow:0 0 8px var(--red)"></div>
+    <button class="assign-btn" id="connect-btn" onclick="toggleBluetooth()">Verbinden</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('zeiten')">Zeiten</div>
+  <div class="tab" onclick="showTab('bestzeiten')">Bestzeiten</div>
+  <div class="tab" onclick="showTab('stats')">Stats</div>
+  <div class="tab" onclick="showTab('settings')">⚙</div>
+</div>
+
+<!-- ZEITEN -->
+<div class="panel active" id="panel-zeiten">
+  <div class="section-label">Bestzeiten</div>
+  <div id="zeiten-bests"></div>
+  <div class="divider"></div>
+  <div class="trail-filter" id="trail-filter"></div>
+  <div class="times-list" id="times-list"></div>
+  <button class="delete-all-btn" onclick="deleteAll()">🗑 Alle Zeiten löschen</button>
+</div>
+
+<!-- BESTZEITEN -->
+<div class="panel" id="panel-bestzeiten">
+  <div class="best-section">
+    <div class="section-label">Bestzeiten pro Trail</div>
+    <div id="best-list"></div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="panel" id="panel-stats">
+  <div class="section-label">Übersicht</div>
+  <div class="stat-grid" id="stat-grid"></div>
+  <div class="section-label">Letzte 5 Fahrten</div>
+  <div id="recent-list"></div>
+</div>
+
+<!-- EINSTELLUNGEN -->
+<div class="panel" id="panel-settings">
+  <div class="section-label">Gerät</div>
+
+  <!-- Anzeigedauer Endzeit -->
+  <div class="setting-row">
+    <div class="setting-header">
+      <span class="setting-name">Anzeigedauer Endzeit</span>
+      <span class="setting-value" id="val-endtime">5s</span>
+    </div>
+    <div class="setting-desc">Wie lange die gestoppte Zeit auf dem Display bleibt</div>
+    <input type="range" min="2" max="30" value="5" id="slider-endtime"
+      oninput="document.getElementById('val-endtime').textContent = this.value + 's'">
+  </div>
+
+  <!-- Countdown Dauer -->
+  <div class="setting-row">
+    <div class="setting-header">
+      <span class="setting-name">Countdown Dauer</span>
+      <span class="setting-value" id="val-countdown">10s</span>
+    </div>
+    <div class="setting-desc">Wie viele Sekunden der Countdown vor dem Start zählt</div>
+    <input type="range" min="3" max="15" value="10" id="slider-countdown"
+      oninput="document.getElementById('val-countdown').textContent = this.value + 's'">
+  </div>
+
+  <div class="setting-row">
+    <div class="setting-header">
+      <span class="setting-name">Start-Anzeige</span>
+      <span class="setting-value" id="val-showing-start">5s</span>
+    </div>
+    <div class="setting-desc">Wie lange „Start!“ nach dem Losfahren angezeigt wird</div>
+    <input type="range" min="0" max="15" value="5" id="slider-showing-start"
+      oninput="document.getElementById('val-showing-start').textContent = this.value + 's'">
+  </div>
+
+  <!-- Buzzer -->
+  <div class="setting-row">
+    <div class="toggle-row">
+      <div>
+        <div class="setting-name">Buzzer</div>
+        <div class="setting-desc" style="margin:4px 0 0">Akustisches Startsignal ein- oder ausschalten</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-buzzer" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="saveSettings()">Speichern</button>
+  <div class="save-confirm" id="save-confirm"></div>
+</div>
+
+<!-- MODAL: Trail zuordnen -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal">
+    <h3>Trail zuordnen</h3>
+    <div class="modal-time" id="modal-time">0:00.000</div>
+    <div class="trail-options" id="modal-trail-options"></div>
+    <div class="new-trail-row">
+      <input class="trail-input" id="new-trail-input" placeholder="Neuer Trail..." maxlength="30">
+      <button class="btn-add" onclick="addNewTrail()">+ Add</button>
+    </div>
+    <button class="modal-cancel" onclick="closeModal()">Abbrechen</button>
+  </div>
+</div>
+
+<script>
+// ─── DATEN ───────────────────────────────────────────────────────────────────
+const BLE_SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+const BLE_SETTINGS_UUID = '12345678-1234-5678-1234-56789abcdef1';
+const BLE_TIME_UUID = '12345678-1234-5678-1234-56789abcdef2';
+const TIMES_STORAGE_KEY = 'downhill_times_v1';
+const SETTINGS_STORAGE_KEY = 'downhill_settings_v1';
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+let bleDevice = null;
+let settingsCharacteristic = null;
+let times = JSON.parse(localStorage.getItem(TIMES_STORAGE_KEY) || '[]');
+let trails = [];
+let activeFilter = "Alle";
+let assigningId = null;
+
+function persistTimes() {
+  localStorage.setItem(TIMES_STORAGE_KEY, JSON.stringify(times));
+  trails = [...new Set(times.filter(t => t.trail).map(t => t.trail))];
+  renderAll();
+}
+
+function setBluetoothStatus(connected) {
+  const dot = document.getElementById('status-dot');
+  const button = document.getElementById('connect-btn');
+  dot.style.background = connected ? 'var(--green)' : 'var(--red)';
+  dot.style.boxShadow = connected ? '0 0 8px var(--green)' : '0 0 8px var(--red)';
+  dot.title = connected ? 'Mit ESP verbunden' : 'Nicht verbunden';
+  button.textContent = connected ? 'Trennen' : 'Verbinden';
+}
+
+async function toggleBluetooth() {
+  if (bleDevice?.gatt?.connected) {
+    bleDevice.gatt.disconnect();
+    return;
+  }
+  if (!navigator.bluetooth) {
+    alert('Web Bluetooth ist in diesem Browser oder auf dieser Seite nicht verfügbar. Öffne die Seite in Chrome über HTTPS.');
+    return;
+  }
+  try {
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ name: 'ESP_Downhill_Timer' }],
+      optionalServices: [BLE_SERVICE_UUID]
+    });
+    bleDevice.addEventListener('gattserverdisconnected', () => {
+      settingsCharacteristic = null;
+      setBluetoothStatus(false);
+    });
+    const server = await bleDevice.gatt.connect();
+    const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+    settingsCharacteristic = await service.getCharacteristic(BLE_SETTINGS_UUID);
+    const timeCharacteristic = await service.getCharacteristic(BLE_TIME_UUID);
+    await timeCharacteristic.startNotifications();
+    timeCharacteristic.addEventListener('characteristicvaluechanged', onBluetoothTime);
+    setBluetoothStatus(true);
+    await sendSettings();
+  } catch (e) {
+    console.error('[BLE]', e);
+    setBluetoothStatus(false);
+    alert('Bluetooth-Verbindung fehlgeschlagen: ' + (e.message || e));
+  }
+}
+
+function onBluetoothTime(event) {
+  try {
+    const packet = JSON.parse(decoder.decode(event.target.value));
+    if (packet.type !== 'NEW_TIME' || !Number.isFinite(Number(packet.ms))) return;
+    times.push({
+      id: Date.now(), ms: Number(packet.ms), time: Number(packet.ms) / 1000,
+      trail: null, date: localDateString()
+    });
+    persistTimes();
+    console.log('[BLE RX] Neue Zeit gespeichert:', packet);
+  } catch (e) {
+    console.error('[BLE] Ungültiges Zeitpaket', e);
+  }
+}
+
+function localDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ─── FORMAT ───────────────────────────────────────────────────────────────────
+function fmt(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 1000);
+  return `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+}
+
+function fmtDate(d) {
+  const [y,mo,day] = d.split('-');
+  return `${day}.${mo}.${y}`;
+}
+
+// ─── BEST PER TRAIL ───────────────────────────────────────────────────────────
+function getBestPerTrail() {
+  const bests = {};
+  times.filter(t => t.trail).forEach(t => {
+    if (!bests[t.trail] || t.ms < bests[t.trail].ms) bests[t.trail] = t;
+  });
+  return bests;
+}
+
+// ─── RENDER ZEITEN ────────────────────────────────────────────────────────────
+function renderZeiten() {
+  const bests = getBestPerTrail();
+
+  // Bestzeiten oben – die 3 zuletzt gefahrenen Trails
+  const bestsEl = document.getElementById('zeiten-bests');
+
+  // Letzten Eintrag pro Trail finden, dann nach Datum/ID sortieren → neueste 3
+  const latestPerTrail = {};
+  times.filter(t => t.trail).forEach(t => {
+    if (!latestPerTrail[t.trail] || t.id > latestPerTrail[t.trail].id)
+      latestPerTrail[t.trail] = t;
+  });
+  const recentTrails = Object.entries(latestPerTrail)
+    .sort((a,b) => b[1].id - a[1].id)
+    .slice(0, 3)
+    .map(([trail]) => trail);
+
+  const bestEntries = recentTrails.map(trail => [trail, bests[trail]]);
+
+  if (!bestEntries.length) {
+    bestsEl.innerHTML = '<div style="font-size:12px;color:var(--muted);padding-bottom:4px;">Noch keine zugeordneten Zeiten</div>';
+  } else {
+    bestsEl.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:4px">` +
+      bestEntries.map(([trail, t]) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:pointer" onclick="setFilter('${trail}')">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;color:var(--yellow)">🏆</span>
+            <span style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase">${trail}</span>
+          </div>
+          <span style="font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:var(--yellow)">${fmt(t.time)}</span>
+        </div>`
+      ).join('') + `</div>`;
+  }
+
+  // Filter chips
+  const allTrails = [...new Set(times.filter(t=>t.trail).map(t=>t.trail))];
+  const filterEl = document.getElementById('trail-filter');
+  filterEl.innerHTML = ['Alle', 'Nicht zugeordnet', ...allTrails].map(t =>
+    `<div class="filter-chip ${activeFilter===t?'active':''}" onclick="setFilter('${t}')">${t}</div>`
+  ).join('');
+
+  // Filter times
+  let filtered = times;
+  if (activeFilter === 'Nicht zugeordnet') filtered = times.filter(t => !t.trail);
+  else if (activeFilter !== 'Alle') filtered = times.filter(t => t.trail === activeFilter);
+  filtered = [...filtered].sort((a,b) => b.id - a.id); // newest first
+
+  const listEl = document.getElementById('times-list');
+  if (!filtered.length) {
+    listEl.innerHTML = '<div class="empty">Keine Zeiten vorhanden</div>';
+    return;
+  }
+
+  // Rank within same trail
+  listEl.innerHTML = filtered.map(t => {
+    const isBest = t.trail && bests[t.trail] && bests[t.trail].id === t.id;
+    const trailTimes = t.trail ? times.filter(x => x.trail === t.trail).sort((a,b)=>a.ms-b.ms) : [];
+    const rank = trailTimes.findIndex(x=>x.id===t.id)+1;
+    const rankStr = t.trail ? `#${rank}` : '—';
+    return `<div class="time-card ${isBest?'best':''} ${!t.trail?'unassigned':''}">
+      <div class="rank ${isBest?'gold':''}">${isBest?'🏆':rankStr}</div>
+      <div class="time-info">
+        <div class="time-value">${fmt(t.time)}</div>
+        <div class="time-meta">
+          ${t.trail
+            ? `<span class="trail-badge">${t.trail}</span>`
+            : `<span class="unassigned-label">Nicht zugeordnet</span>`}
+          <span>${fmtDate(t.date)}</span>
+        </div>
+      </div>
+      <button class="assign-btn" onclick="openModal(${t.id})">${t.trail?'Ändern':'Zuordnen'}</button>
+      <button class="delete-btn" onclick="deleteTime(${t.id})" title="Löschen">✕</button>
+    </div>`;
+  }).join('');
+}
+
+// ─── RENDER BESTZEITEN ────────────────────────────────────────────────────────
+function renderBestzeiten() {
+  const bests = getBestPerTrail();
+  const el = document.getElementById('best-list');
+  if (!Object.keys(bests).length) {
+    el.innerHTML = '<div class="empty">Noch keine zugeordneten Zeiten</div>';
+    return;
+  }
+  el.innerHTML = Object.entries(bests).sort((a,b)=>a[1].ms-b[1].ms).map(([trail, t]) => {
+    const count = times.filter(x=>x.trail===trail).length;
+    const trailTimes = times.filter(x=>x.trail===trail).sort((a,b)=>a.ms-b.ms);
+    const second = trailTimes[1];
+    const diff = second ? `+${fmt(second.time - t.time).replace('0:','')}` : null;
+    return `<div class="podium-card">
+      <div>
+        <div class="podium-trail">${trail}</div>
+        <div class="podium-count">${count} Fahrt${count>1?'en':''}</div>
+        ${diff ? `<div class="diff-positive" style="margin-top:4px">2. ${diff}</div>` : ''}
+      </div>
+      <div>
+        <div class="podium-time">${fmt(t.time)}</div>
+        <div style="font-size:11px;color:var(--muted);text-align:right;margin-top:4px;letter-spacing:1px">${fmtDate(t.date)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── RENDER STATS ─────────────────────────────────────────────────────────────
+function renderStats() {
+  const assigned = times.filter(t=>t.trail);
+  const total = times.length;
+  const trailCount = new Set(assigned.map(t=>t.trail)).size;
+
+  // Heute
+  const today = localDateString();
+  const todayTimes = times.filter(t => t.date === today);
+  const todayBest = todayTimes.length
+    ? todayTimes.reduce((best, t) => t.ms < best.ms ? t : best)
+    : null;
+
+  document.getElementById('stat-grid').innerHTML = `
+    <div class="stat-box">
+      <div class="stat-label">Fahrten Gesamt</div>
+      <div class="stat-value white">${total}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Trails</div>
+      <div class="stat-value white">${trailCount}</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-label">Heutige Fahrten</div>
+      <div class="stat-value white">${todayTimes.length}</div>
+    </div>
+    <div class="stat-box" style="${todayBest ? '' : 'opacity:0.4'}">
+      <div class="stat-label">Heutige Bestzeit</div>
+      <div class="stat-value">${todayBest ? fmt(todayBest.time) : '—'}</div>
+      <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:700;color:var(--muted);margin-top:5px">
+        ${todayBest?.trail ?? ''}
+      </div>
+    </div>
+  `;
+
+  const recent = [...times].sort((a,b)=>b.id-a.id).slice(0,5);
+  document.getElementById('recent-list').innerHTML = recent.map(t => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:13px;letter-spacing:1px;${!t.trail?'color:var(--muted)':''}">
+          ${t.trail || 'Nicht zugeordnet'}
+        </div>
+        <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:2px">${fmtDate(t.date)}</div>
+      </div>
+      <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:700;color:${t.trail?'var(--text)':'var(--muted)'}">
+        ${fmt(t.time)}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── FILTER ───────────────────────────────────────────────────────────────────
+function setFilter(f) {
+  activeFilter = f;
+  renderZeiten();
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  assigningId = id;
+  const t = times.find(x=>x.id===id);
+  document.getElementById('modal-time').textContent = fmt(t.time);
+  document.getElementById('new-trail-input').value = '';
+  const opts = document.getElementById('modal-trail-options');
+  opts.innerHTML = trails.map(tr => `
+    <div class="trail-option" onclick="assignTrail('${tr}')">${tr}</div>
+  `).join('');
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal')) {
+    document.getElementById('modal').classList.remove('open');
+    assigningId = null;
+  }
+}
+
+async function assignTrail(trail) {
+  if (assigningId === null) return;
+  const time = times.find(t => t.id === assigningId);
+  if (time) time.trail = trail;
+  document.getElementById('modal').classList.remove('open');
+  assigningId = null;
+  persistTimes();
+}
+
+function addNewTrail() {
+  const val = document.getElementById('new-trail-input').value.trim();
+  if (!val) return;
+  assignTrail(val);
+}
+
+// ─── LÖSCHEN ─────────────────────────────────────────────────────────────────
+async function deleteTime(id) {
+  if (!confirm('Diese Zeit löschen?')) return;
+  times = times.filter(t => t.id !== id);
+  persistTimes();
+}
+
+async function deleteAll() {
+  if (!confirm('Wirklich ALLE Zeiten löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  times = [];
+  persistTimes();
+}
+
+// ─── EINSTELLUNGEN ───────────────────────────────────────────────────────────
+async function loadSettings() {
+  const data = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || '{}');
+  document.getElementById('slider-endtime').value = data.show_endtime ?? 5;
+  document.getElementById('slider-countdown').value = data.countdown ?? 10;
+  document.getElementById('slider-showing-start').value = data.showing_start ?? 5;
+  document.getElementById('toggle-buzzer').checked = data.buzzer_enabled ?? true;
+  document.getElementById('val-endtime').textContent = (data.show_endtime ?? 5) + 's';
+  document.getElementById('val-countdown').textContent = (data.countdown ?? 10) + 's';
+  document.getElementById('val-showing-start').textContent = (data.showing_start ?? 5) + 's';
+}
+
+async function saveSettings() {
+  const settings = {
+    show_endtime:   parseInt(document.getElementById('slider-endtime').value),
+    countdown:      parseInt(document.getElementById('slider-countdown').value),
+    showing_start:  parseInt(document.getElementById('slider-showing-start').value),
+    buzzer_enabled: document.getElementById('toggle-buzzer').checked
+  };
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  await sendSettings();
+  const confirm = document.getElementById('save-confirm');
+  confirm.textContent = settingsCharacteristic ? '✓ An ESP gesendet' : '✓ Lokal gespeichert – ESP nicht verbunden';
+  setTimeout(() => confirm.textContent = '', 2000);
+}
+
+async function sendSettings() {
+  if (!settingsCharacteristic) return;
+  const settings = {
+    show_endtime: parseInt(document.getElementById('slider-endtime').value),
+    countdown: parseInt(document.getElementById('slider-countdown').value),
+    showing_start: parseInt(document.getElementById('slider-showing-start').value),
+    buzzer_enabled: document.getElementById('toggle-buzzer').checked
+  };
+  await settingsCharacteristic.writeValue(encoder.encode(JSON.stringify(settings)));
+  console.log('[BLE TX] Einstellungen gesendet:', settings);
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelector(`[onclick="showTab('${name}')"]`).classList.add('active');
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderZeiten();
+  renderBestzeiten();
+  renderStats();
+}
+trails = [...new Set(times.filter(t => t.trail).map(t => t.trail))];
+renderAll();
+loadSettings();
+setBluetoothStatus(false);
+</script>
+</body>
+</html>
